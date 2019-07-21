@@ -1,3 +1,12 @@
+function [PCA_reconstruct] = pca_reconstruct(imageMtx, svd_count)
+    [U, s, V]=svd(imageMtx);
+    s=diag(s);
+    s(svd_count:end)=0;
+    PCA_reconstruct=U*diag(s)*V';
+end
+
+
+
 % F=imrotate(imresize(imageArray,[512, 512]), 45, 'bicubic', 'crop');
 % % figure(1);imshow(F,[])
 % F=fft2(F);
