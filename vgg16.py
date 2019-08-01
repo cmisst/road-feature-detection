@@ -1,7 +1,12 @@
 import tensorflow as tf
+import numpy as np
 
 class VGG16():
     model = None
+    train_dataset = None
+    train_labels = None
+    test_dataset = None
+    test_labels = None
 
     def __init__(self):
         super(VGG16, self).__init__()
@@ -57,8 +62,32 @@ class VGG16():
         self.model.add(tf.keras.layers.Dropout(0.5))
         self.model.add(tf.keras.layers.Dense(2, activation='softmax'))
 
+    def load_dataset_labels(self, train=True, prefix=None):
+        dataset = np.load(prefix+'dataset.npy') / 255.0
+        labels = np.load(prefix + 'labels.npy')
+        assert(np.shape(dataset)[0] == np.shape(labels)[0])
+        dataset = np.reshape(dataset, np.shape(dataset)+(1,))
+        if train:
+            self.train_dataset = dataset
+            self.train_labels = labels
+        else:
+            self.test_dataset = dataset
+            self.test_labels = labels
+        print('train' if train else 'test', dataset.shape)
+
+    def train(self):
+        self.model.compile(optimizer=tf.keras.optimizers.Adam(lr=0.0001),
+            loss='sparse_categorical_crossentropy',
+            metrics=['accuracy'])
+        self.model.fit(x=self.train_dataset, y=self.train_labels,
+            epochs=5, steps_per_epoch=14)
+
+
 
 if __name__ == "__main__":
     vgg = VGG16()
     print(vgg.model.summary())
-    print(tf.test.is_gpu_available())
+    vgg.load_dataset_labels(train=True, prefix='Train-')
+    vgg.load_dataset_labels(train=False, prefix='Test-')
+    vgg.train()
+    # print(tf.test.is_gpu_available())
