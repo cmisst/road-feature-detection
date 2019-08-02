@@ -14,7 +14,7 @@ class VGG16():
         # Block 1
         self.model = tf.keras.models.Sequential()
         # Greyscale input images
-        self.model.add(tf.keras.layers.ZeroPadding2D((1,1), input_shape=(224,224,1)))
+        self.model.add(tf.keras.layers.ZeroPadding2D((1,1), input_shape=(224,224,3)))
         self.model.add(tf.keras.layers.Conv2D(64, (3, 3), activation='relu', padding='same'))
         self.model.add(tf.keras.layers.ZeroPadding2D((1,1)))
         self.model.add(tf.keras.layers.Conv2D(64, (3, 3), activation='relu', padding='same'))
@@ -63,10 +63,9 @@ class VGG16():
         self.model.add(tf.keras.layers.Dense(2, activation='softmax'))
 
     def load_dataset_labels(self, train=True, prefix=None):
-        dataset = np.load(prefix+'dataset.npy') / 255.0
+        dataset = np.load(prefix+'dataset.npy') / 255
         labels = np.load(prefix + 'labels.npy')
         assert(np.shape(dataset)[0] == np.shape(labels)[0])
-        dataset = np.reshape(dataset, np.shape(dataset)+(1,))
         if train:
             self.train_dataset = dataset
             self.train_labels = labels
@@ -79,8 +78,7 @@ class VGG16():
         self.model.compile(optimizer=tf.keras.optimizers.Adam(lr=0.0001),
             loss='sparse_categorical_crossentropy',
             metrics=['accuracy'])
-        self.model.fit(x=self.train_dataset, y=self.train_labels,
-            epochs=5, steps_per_epoch=14)
+        self.model.fit(x=self.train_dataset, y=self.train_labels, epochs=5, steps_per_epoch=7)
 
 
 
