@@ -78,11 +78,13 @@ class VGG16():
         self.model.compile(optimizer=tf.keras.optimizers.Adam(lr=0.0001),
             loss='sparse_categorical_crossentropy',
             metrics=['accuracy'])
-        self.model.fit(x=self.train_dataset, y=self.train_labels, epochs=5, steps_per_epoch=7)
+        self.model.fit(x=self.train_dataset, y=self.train_labels, epochs=1, steps_per_epoch=100)
 
 
 
 if __name__ == "__main__":
+    import os
+    os.environ["CUDA_VISIBLE_DEVICES"]="-1"
     vgg = VGG16()
     print(vgg.model.summary())
     vgg.load_dataset_labels(train=True, prefix='Train-')
