@@ -1,7 +1,7 @@
-import sys, os
+import os, warnings
 from PIL import Image
 import numpy as np
-import warnings
+
 
 labels = []
 dataset = []
@@ -25,4 +25,4 @@ for i in range(augment):
     labels.append(0)
 
 np.save(output_name + '-dataset.npy', dataset)
-np.save(output_name + '-labels.npy', labels)
+np.save(output_name + '-labels.npy', np.array(labels))
