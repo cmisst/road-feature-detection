@@ -4,6 +4,7 @@ import numpy as np
 import time
 
 
+
 def load_pt_or_npy(filename, channel_first=True):
     ''' load npy: [N, H, W, C] and permute to [N, C, H, W] '''
     try:
@@ -20,7 +21,7 @@ def load_pt_or_npy(filename, channel_first=True):
         return tensor
 
 
-def train(trainloader, net, criterion, optimizer, device, epochs=5):
+def train(trainloader, net, criterion, optimizer, device, epochs=10):
     for epoch in range(epochs):  # loop over the dataset multiple times
         start = time.time()
         running_loss = 0.0
@@ -57,6 +58,21 @@ def train(trainloader, net, criterion, optimizer, device, epochs=5):
     print('Finished Training')
 
 
+def test(testloader, net, device):
+    correct = 0
+    total = 0
+    with torch.no_grad():
+        for data in testloader:
+            images, labels = data
+            images = images.to(device)
+            labels = labels.to(device)
+            outputs = net.fc(net(images))
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.shape[0]
+            correct += (predicted==labels.view(labels.shape[0])).sum().item()
+        print(correct, total, correct/total)
+    pass
+
 
 def main():
     # Pytorch hardware selection
@@ -68,16 +84,35 @@ def main():
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
     
+    # transform to normalize
+    normalize = torchvision.transforms.Normalize(
+                mean=[0.485, 0.456, 0.406],
+                std=[0.229, 0.224, 0.225])
+
     # load training dataset
     dataset = torch.utils.data.TensorDataset(load_pt_or_npy('Train-dataset'),
         load_pt_or_npy('Train-labels', channel_first=False).long())
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=1)
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=50)
+
+
 
     # NN configuration
-    model = torchvision.models.vgg11(pretrained=False, progress=True)
+    model = torchvision.models.vgg19(pretrained=False, progress=True)
     model.fc = torch.nn.Linear(1000, 2)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    print(model)
+
+
     train(dataloader, model.to(device), torch.nn.CrossEntropyLoss().cuda(), optimizer, device)
+
+
+    # Test
+    dataset = torch.utils.data.TensorDataset(load_pt_or_npy('Test-dataset'),
+        load_pt_or_npy('Test-labels', channel_first=False).long())
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=100)
+
+    test(dataloader, model.to(device), device)
+
 
 
     return
