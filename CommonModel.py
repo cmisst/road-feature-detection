@@ -30,30 +30,29 @@ def train(trainloader, net, criterion, optimizer, device, epochs=5):
         #     histogram = np.zeros(np.shape(np.unique(trainloader.dataset.dataset.train_labels)))
         for i, (images, labels) in enumerate(trainloader):
             # histogram += np.histogram(labels.numpy(), bins=np.shape(histogram)[0])[0]
-            # with torch.no_grad():
-                print(torch.cuda.memory_allocated(), torch.cuda.max_memory_allocated())
-                images = images.to(device)
-                labels = labels.to(device)
-                # TODO: zero the parameter gradients
-                # TODO: forward pass
-                # TODO: backward pass
-                # TODO: optimize the network
-                optimizer.zero_grad()
-                scores = net.fc(net.forward(images))
-                loss = criterion(scores, labels)
-                loss.backward()
-                optimizer.step()
-                # print statistics
-                running_loss += loss.item()
+            # print(torch.cuda.memory_allocated(), torch.cuda.max_memory_allocated())
+            images = images.to(device)
+            labels = labels.to(device)
+            # TODO: zero the parameter gradients
+            # TODO: forward pass
+            # TODO: backward pass
+            # TODO: optimize the network
+            optimizer.zero_grad()
+            scores = net.fc(net.forward(images))
+            loss = criterion(scores, labels.view(labels.shape[0]))
+            loss.backward()
+            optimizer.step()
+            # print statistics
+            running_loss += loss.item()
 
-                if i % 1 == 0:    # print every 2000 mini-batches
-                    end = time.time()
-                    print('[epoch %d, iter %5d] loss: %.3f eplased time %.3f' %
-                          (epoch + 1, i + 1, running_loss / 100, end-start))
-                    start = time.time()
-                    running_loss = 0.0
+            if i % 5 == 0:    # print every 2000 mini-batches
+                end = time.time()
+                print('[epoch %d, iter %5d] loss: %.3f eplased time %.3f' %
+                      (epoch , i , running_loss, end-start))
+                start = time.time()
+                running_loss = 0.0
 
-                torch.cuda.empty_cache()
+            torch.cuda.empty_cache()
         # print(histogram)
     print('Finished Training')
 
@@ -71,14 +70,14 @@ def main():
     
     # load training dataset
     dataset = torch.utils.data.TensorDataset(load_pt_or_npy('Train-dataset'),
-        load_pt_or_npy('Train-labels', channel_first=False))
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=3)
+        load_pt_or_npy('Train-labels', channel_first=False).long())
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=1)
 
     # NN configuration
     model = torchvision.models.vgg11(pretrained=False, progress=True)
-    model.fc = torch.nn.Linear(1000, 1)
+    model.fc = torch.nn.Linear(1000, 2)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    train(dataloader, model.to(device), torch.nn.MSELoss().cuda(), optimizer, device)
+    train(dataloader, model.to(device), torch.nn.CrossEntropyLoss().cuda(), optimizer, device)
 
 
     return
