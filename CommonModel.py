@@ -21,7 +21,7 @@ def load_pt_or_npy(filename, channel_first=True):
         return tensor
 
 
-def train(trainloader, net, criterion, optimizer, device, epochs=10):
+def train(trainloader, net, criterion, optimizer, device, epochs=20):
     for epoch in range(epochs):  # loop over the dataset multiple times
         start = time.time()
         running_loss = 0.0
@@ -39,7 +39,7 @@ def train(trainloader, net, criterion, optimizer, device, epochs=10):
             # TODO: backward pass
             # TODO: optimize the network
             optimizer.zero_grad()
-            scores = net.fc(net.forward(images))
+            scores = torch.sigmoid(net.fc(net.forward(images)))
             loss = criterion(scores, labels.view(labels.shape[0]))
             loss.backward()
             optimizer.step()
@@ -51,7 +51,7 @@ def train(trainloader, net, criterion, optimizer, device, epochs=10):
                 print('[epoch %d, iter %5d] loss: %.3f eplased time %.3f' %
                       (epoch , i , running_loss, end-start))
                 start = time.time()
-                running_loss = 0.0
+                print(scores.view([1, scores.shape[0]]))
 
             torch.cuda.empty_cache()
         # print(histogram)
@@ -67,9 +67,9 @@ def test(testloader, net, device):
             images = images.to(device)
             labels = labels.to(device)
             outputs = net.fc(net(images))
-            _, predicted = torch.max(outputs.data, 1)
+            outputs = (outputs>0).type(labels.dtype)
             total += labels.shape[0]
-            correct += (predicted==labels.view(labels.shape[0])).sum().item()
+            correct += (outputs==labels).sum().item()
         print(correct, total, correct/total)
     pass
 
@@ -91,24 +91,24 @@ def main():
 
     # load training dataset
     dataset = torch.utils.data.TensorDataset(load_pt_or_npy('Train-dataset'),
-        load_pt_or_npy('Train-labels', channel_first=False).long())
+        load_pt_or_npy('Train-labels', channel_first=False))
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=50)
 
 
 
     # NN configuration
-    model = torchvision.models.vgg19(pretrained=False, progress=True)
-    model.fc = torch.nn.Linear(1000, 2)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    model = torchvision.models.squeezenet1_0(pretrained=False, progress=True)
+    model.fc = torch.nn.Linear(1000, 1)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
     print(model)
 
 
-    train(dataloader, model.to(device), torch.nn.CrossEntropyLoss().cuda(), optimizer, device)
+    train(dataloader, model.to(device), torch.nn.BCELoss().cuda(), optimizer, device)
 
 
     # Test
     dataset = torch.utils.data.TensorDataset(load_pt_or_npy('Test-dataset'),
-        load_pt_or_npy('Test-labels', channel_first=False).long())
+        load_pt_or_npy('Test-labels', channel_first=False))
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=100)
 
     test(dataloader, model.to(device), device)
