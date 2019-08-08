@@ -3,6 +3,7 @@ import torchvision
 import numpy as np
 import time
 
+# import matplotlib.pyplot as plt
 
 
 def load_pt_or_npy(filename, channel_first=True):
@@ -32,6 +33,8 @@ def train(trainloader, net, criterion, optimizer, device, epochs=20):
         for i, (images, labels) in enumerate(trainloader):
             # histogram += np.histogram(labels.numpy(), bins=np.shape(histogram)[0])[0]
             # print(torch.cuda.memory_allocated(), torch.cuda.max_memory_allocated())
+            # plt.imshow(images[0].permute(2,1,0))
+            # plt.show()
             images = images.to(device)
             labels = labels.to(device)
             # TODO: zero the parameter gradients
@@ -83,7 +86,7 @@ def main():
     if device.type=='cuda':
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
-    
+
     # transform to normalize
     normalize = torchvision.transforms.Normalize(
                 mean=[0.485, 0.456, 0.406],
