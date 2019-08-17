@@ -2,27 +2,14 @@ import torch
 import torchvision
 import numpy as np
 import time
+from SatelliteDataset import SatelliteDataset
 
 # import matplotlib.pyplot as plt
 
 
-def load_pt_or_npy(filename, channel_first=True):
-    ''' load npy: [N, H, W, C] and permute to [N, C, H, W] '''
-    try:
-        return torch.load(filename + '.pt')
-    except FileNotFoundError:
-        data = np.load(filename + '.npy')
-        if len(data.shape)==1:
-            data = [np.array([data[i]], dtype=np.float16) for i in range(data.shape[0])]
-        elif channel_first:
-            data = np.swapaxes(data, 1, 3)
-            data = [data[i,:,:,:]/256 for i in range(data.shape[0])]
-        tensor = torch.stack([torch.Tensor(i) for i in data])
-        torch.save(tensor, filename+'.pt')
-        return tensor
 
 
-def train(trainloader, net, criterion, optimizer, device, epochs=20):
+def train(trainloader, net, criterion, optimizer, device, epochs=10):
     for epoch in range(epochs):  # loop over the dataset multiple times
         start = time.time()
         running_loss = 0.0
@@ -36,6 +23,7 @@ def train(trainloader, net, criterion, optimizer, device, epochs=20):
             # plt.imshow(images[0].permute(2,1,0))
             # plt.show()
             images = images.to(device)
+            labels = labels.type(torch.float)
             labels = labels.to(device)
             # TODO: zero the parameter gradients
             # TODO: forward pass
@@ -43,7 +31,7 @@ def train(trainloader, net, criterion, optimizer, device, epochs=20):
             # TODO: optimize the network
             optimizer.zero_grad()
             scores = torch.sigmoid(net.fc(net.forward(images)))
-            loss = criterion(scores, labels.view(labels.shape[0]))
+            loss = criterion(scores.reshape(labels.shape), labels)
             loss.backward()
             optimizer.step()
             # print statistics
@@ -71,6 +59,7 @@ def test(testloader, net, device):
             labels = labels.to(device)
             outputs = net.fc(net(images))
             outputs = (outputs>0).type(labels.dtype)
+            outputs = outputs.reshape(labels.shape)
             total += labels.shape[0]
             correct += (outputs==labels).sum().item()
         print(correct, total, correct/total)
@@ -88,30 +77,26 @@ def main():
         torch.backends.cudnn.benchmark = False
 
     # transform to normalize
-    normalize = torchvision.transforms.Normalize(
-                mean=[0.485, 0.456, 0.406],
-                std=[0.229, 0.224, 0.225])
+    t = torchvision.transforms.Compose([torchvision.transforms.Resize((224,224)),
+        torchvision.transforms.ToTensor()])
 
     # load training dataset
-    dataset = torch.utils.data.TensorDataset(load_pt_or_npy('Train-dataset'),
-        load_pt_or_npy('Train-labels', channel_first=False))
+    dataset = SatelliteDataset('./data/CNN_static_data/Train/', label_pos=-5, transform=t)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=50)
 
 
-
     # NN configuration
-    model = torchvision.models.squeezenet1_0(pretrained=False, progress=True)
+    model = torchvision.models.squeezenet1_1(pretrained=False, progress=True)
     model.fc = torch.nn.Linear(1000, 1)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
     print(model)
 
-
+    
     train(dataloader, model.to(device), torch.nn.BCELoss().cuda(), optimizer, device)
 
 
-    # Test
-    dataset = torch.utils.data.TensorDataset(load_pt_or_npy('Test-dataset'),
-        load_pt_or_npy('Test-labels', channel_first=False))
+    # load test dataset
+    dataset = SatelliteDataset('./data/CNN_static_data/Test/', label_pos=-5, transform=t)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=100)
 
     test(dataloader, model.to(device), device)
