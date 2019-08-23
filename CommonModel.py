@@ -9,7 +9,7 @@ from SatelliteDataset import SatelliteDataset
 
 
 
-def train(trainloader, net, criterion, optimizer, device, epochs=10):
+def train(trainloader, net, criterion, optimizer, device, epochs):
     for epoch in range(epochs):  # loop over the dataset multiple times
         start = time.time()
         running_loss = 0.0
@@ -17,7 +17,7 @@ def train(trainloader, net, criterion, optimizer, device, epochs=10):
         #     histogram = np.zeros(np.shape(trainloader.dataset.dataset.classes))
         # except AttributeError:
         #     histogram = np.zeros(np.shape(np.unique(trainloader.dataset.dataset.train_labels)))
-        for i, (images, labels) in enumerate(trainloader):
+        for i, (images, labels, filename) in enumerate(trainloader):
             # histogram += np.histogram(labels.numpy(), bins=np.shape(histogram)[0])[0]
             # print(torch.cuda.memory_allocated(), torch.cuda.max_memory_allocated())
             # plt.imshow(images[0].permute(2,1,0))
@@ -54,7 +54,7 @@ def test(testloader, net, device):
     total = 0
     with torch.no_grad():
         for data in testloader:
-            images, labels = data
+            images, labels, filenames = data
             images = images.to(device)
             labels = labels.to(device)
             outputs = net.fc(net(images))
@@ -65,45 +65,89 @@ def test(testloader, net, device):
         print(correct, total, correct/total)
     pass
 
+class CommonModel():
+    net = None
+    device = None
+    transform = None
+    optimizer = None
+
+    def __init__(self):
+        # Pytorch hardware selection
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        print(self.device.type)
+        torch.nn.Module.dump_patches = True
+        torch.manual_seed(0)
+        if self.device.type=='cuda':
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = False
+
+        # NN configuration
+        self.net = torchvision.models.squeezenet1_1(pretrained=False, progress=True)
+        self.net.fc = torch.nn.Linear(1000, 1)
+        self.optimizer = torch.optim.Adam(self.net.parameters(), lr=0.0001)
+        print(self.net)
+
+    def set_data_transform(self, t=None):
+        if t is None:
+            self.transform = torchvision.transforms.Compose(
+                [torchvision.transforms.Resize((224,224)),
+                torchvision.transforms.ToTensor()])
+        else:
+            self.transform = t
+
+    def train(self, label_pos, batch, epochs=10, load_pretrained=False, path=None):
+        if path is None:
+            path = './data/CNN_static_data/Train/'
+
+        # load training dataset
+        dataset = SatelliteDataset(path, label_pos=label_pos, transform=self.transform)
+        dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch)
+
+        train(dataloader, self.net.to(self.device), torch.nn.BCELoss().cuda(), 
+            self.optimizer, self.device, epochs)
+
+    def test(self, label_pos, batch, path=None):
+        if path is None:
+            path = './data/CNN_static_data/Test/'
+
+        # load test dataset
+        dataset = SatelliteDataset(path, label_pos=label_pos, transform=self.transform)
+        dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch)
+
+        test(dataloader, self.net.to(self.device), self.device)
+
+    def predict(self, batch, path=None):
+        # load unlabeled dataset
+        dataset = SatelliteDataset(path, label_pos=2, transform=self.transform)
+        dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch)
+        
+        n = np.array([]) # filenames
+        p = np.array([]) # predict
+        with torch.no_grad():
+            for data in dataloader:
+                images, labels, filenames = data
+                images = images.to(self.device)
+                labels = labels.to(self.device)
+                outputs = self.net.fc(self.net(images))
+                outputs = (outputs>0).type(labels.dtype)
+                outputs = outputs.reshape(labels.shape)
+                n = np.append(n, filenames.cpu().numpy())
+                p = np.append(p, outputs.cpu().numpy())
+                print(n.shape)
+        return (n,p)
+
 
 def main():
-    # Pytorch hardware selection
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(device.type)
-    torch.nn.Module.dump_patches = True
-    torch.manual_seed(0)
-    if device.type=='cuda':
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
-
-    # transform to normalize
-    t = torchvision.transforms.Compose([torchvision.transforms.Resize((224,224)),
-        torchvision.transforms.ToTensor()])
-
-    # load training dataset
-    dataset = SatelliteDataset('./data/CNN_static_data/Train/', label_pos=-5, transform=t)
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=50)
-
-
-    # NN configuration
-    model = torchvision.models.squeezenet1_1(pretrained=False, progress=True)
-    model.fc = torch.nn.Linear(1000, 1)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
-    print(model)
-
-    
-    train(dataloader, model.to(device), torch.nn.BCELoss().cuda(), optimizer, device)
-
-
-    # load test dataset
-    dataset = SatelliteDataset('./data/CNN_static_data/Test/', label_pos=-5, transform=t)
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=100)
-
-    test(dataloader, model.to(device), device)
-
-
-
+    m = CommonModel()
+    m.set_data_transform()
+    m.train(label_pos=-5, batch=100,epochs=2)
+    m.test(label_pos=-5, batch=700)
+    print(m.predict(batch=1000, path='/scratch/engin_root/engin/yugtmath/Unlabeled_Satellite_IMG/'))
     return
+
+
+
+
 
 
 if __name__ == "__main__":

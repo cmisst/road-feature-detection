@@ -1,5 +1,6 @@
 import torch
 import torchvision as tv
+import numpy as np
 import os, warnings
 from PIL import Image
 
@@ -34,7 +35,8 @@ class SatelliteDataset(torch.utils.data.dataset.Dataset):
 
         # for binary classification
         label = int(self.img_list[idx][self.label_pos], 2)
-        return (img_as_tensor, label)
+        filename = np.int64(self.img_list[idx][0:8])
+        return (img_as_tensor, label, filename)
 
 
 if __name__ == "__main__":
