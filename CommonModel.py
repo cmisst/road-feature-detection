@@ -124,6 +124,7 @@ class CommonModel():
         n = np.array([]) # filenames
         p = np.array([]) # predict
         with torch.no_grad():
+            start=time.time()
             for data in dataloader:
                 images, labels, filenames = data
                 images = images.to(self.device)
@@ -133,16 +134,20 @@ class CommonModel():
                 outputs = outputs.reshape(labels.shape)
                 n = np.append(n, filenames.cpu().numpy())
                 p = np.append(p, outputs.cpu().numpy())
-                print(n.shape)
-        return (n,p)
+                end = time.time()
+                print(n.shape, 'elapsed time: {}'.format(end-start))
+                start = time.time()
+        return np.int64(np.stack((n,p)).T)
 
 
 def main():
     m = CommonModel()
     m.set_data_transform()
-    m.train(label_pos=-5, batch=100,epochs=2)
+    m.train(label_pos=-5, batch=50,epochs=10)
     m.test(label_pos=-5, batch=700)
-    print(m.predict(batch=1000, path='/scratch/engin_root/engin/yugtmath/Unlabeled_Satellite_IMG/'))
+    np.savetxt('predict_median.csv', 
+        m.predict(batch=1000, path='/scratch/engin_root/engin/yugtmath/Unlabeled_Satellite_IMG/'),
+        fmt='%d', delimiter=',')
     return
 
 
