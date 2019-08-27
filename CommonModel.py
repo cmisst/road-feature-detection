@@ -143,13 +143,14 @@ class CommonModel():
 def main():
     m = CommonModel()
     m.set_data_transform()
-    m.train(label_pos=-5, batch=50, epochs=10, path='/scratch/engin_root/engin/yugtmath/Median_Satellite_View/train/')
-    m.test(label_pos=-5, batch=200, path='/scratch/engin_root/engin/yugtmath/Median_Satellite_View/test/')
-    m.test(label_pos=-5, batch=200, path='/scratch/engin_root/engin/yugtmath/Median_Satellite_View/Remainder1/')
+    prefix='/scratch/engin_root/engin/yugtmath/'
+    m.train(label_pos=-5, batch=50, epochs=10, path=prefix+'Median_Satellite_View/train/')
+    m.test(label_pos=-5, batch=200, path=prefix+'Median_Satellite_View/test/')
+    m.test(label_pos=-5, batch=200, path=prefix+'Median_Satellite_View/Remainder1/')
 
-    m.train(label_pos=-8, batch=50, epochs=10, path='/scratch/engin_root/engin/yugtmath/Crosswalk_Satellite_View/train/')
-    m.test(label_pos=-8, batch=200, path='/scratch/engin_root/engin/yugtmath/Crosswalk_Satellite_View/test/')
-    m.test(label_pos=-8, batch=200, path='/scratch/engin_root/engin/yugtmath/Crosswalk_Satellite_View/Remainder0/')
+    m.train(label_pos=-8, batch=50, epochs=10, path=prefix+'Crosswalk_Satellite_View/train/')
+    m.test(label_pos=-8, batch=200, path=prefix+'Crosswalk_Satellite_View/test/')
+    m.test(label_pos=-8, batch=200, path=prefix+'Crosswalk_Satellite_View/Remainder0/')
     # np.savetxt('predict_median.csv', 
     #     m.predict(batch=1000, path='/scratch/engin_root/engin/yugtmath/Unlabeled_Satellite_IMG/'),
     #     fmt='%d', delimiter=',')
