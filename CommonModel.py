@@ -1,5 +1,5 @@
 import torch
-import torchvision
+import torchvision as tv
 import numpy as np
 import time
 from SatelliteDataset import SatelliteDataset
@@ -50,8 +50,7 @@ def train(trainloader, net, criterion, optimizer, device, epochs):
 
 
 def test(testloader, net, device):
-    correct = 0
-    total = 0
+    confusion_matrix = torch.zeros(2,2)
     with torch.no_grad():
         for data in testloader:
             images, labels, filenames = data
@@ -60,9 +59,9 @@ def test(testloader, net, device):
             outputs = net.fc(net(images))
             outputs = (outputs>0).type(labels.dtype)
             outputs = outputs.reshape(labels.shape)
-            total += labels.shape[0]
-            correct += (outputs==labels).sum().item()
-        print(correct, total, correct/total)
+            for t,p in zip(labels, outputs):
+                confusion_matrix[t.long(), p.long()] += 1
+        print(confusion_matrix.numpy())
     pass
 
 class CommonModel():
@@ -82,18 +81,17 @@ class CommonModel():
             torch.backends.cudnn.benchmark = False
 
         # NN configuration
-        self.net = torchvision.models.squeezenet1_1(pretrained=False, progress=True)
+        self.net = tv.models.squeezenet1_1(pretrained=True, progress=True)
         self.net.fc = torch.nn.Linear(1000, 1)
         self.optimizer = torch.optim.Adam(self.net.parameters(), lr=0.0001)
         print(self.net)
 
     def set_data_transform(self, t=None):
         if t is None:
-            self.transform = torchvision.transforms.Compose(
-                [torchvision.transforms.Resize((224,224)),
-                torchvision.transforms.ToTensor()])
-        else:
-            self.transform = t
+            t = []
+        t = [tv.transforms.Resize((224,224))] + t
+        t.append(tv.transforms.ToTensor())
+        self.transform = tv.transforms.Compose(t)
 
     def train(self, label_pos, batch, epochs=10, load_pretrained=False, path=None):
         if path is None:
@@ -141,14 +139,24 @@ class CommonModel():
 
 
 def main():
-    m = CommonModel()
-    m.set_data_transform()
-    prefix='/scratch/engin_root/engin/yugtmath/'
-    m.train(label_pos=-5, batch=50, epochs=10, path=prefix+'Median_Satellite_View/train/')
-    m.test(label_pos=-5, batch=200, path=prefix+'Median_Satellite_View/test/')
-    m.test(label_pos=-5, batch=200, path=prefix+'Median_Satellite_View/Remainder1/')
+    prefix='./data/'
+    transforms=[[],
+        [tv.transforms.RandomVerticalFlip(p=1)],
+        [tv.transforms.RandomHorizontalFlip(p=1)],
+        [tv.transforms.RandomHorizontalFlip(p=1), tv.transforms.RandomVerticalFlip(p=1)]
+    ]
+    # m = CommonModel()
+    # for t in transforms:
+    #     m.set_data_transform(t=t)
+    #     m.train(label_pos=-5, batch=100, epochs=5, path=prefix+'Median_Satellite_View/train/')
+    # m.test(label_pos=-5, batch=200, path=prefix+'Median_Satellite_View/test/')
+    # m.test(label_pos=-5, batch=200, path=prefix+'Median_Satellite_View/Remainder1/')
 
-    m.train(label_pos=-8, batch=50, epochs=10, path=prefix+'Crosswalk_Satellite_View/train/')
+    m = CommonModel()
+    for t in transforms*40:
+        m.set_data_transform(t=t)
+        m.train(label_pos=-8, batch=300, epochs=1, path=prefix+'Crosswalk_Satellite_View/train/')
+        print(t)
     m.test(label_pos=-8, batch=200, path=prefix+'Crosswalk_Satellite_View/test/')
     m.test(label_pos=-8, batch=200, path=prefix+'Crosswalk_Satellite_View/Remainder0/')
     # np.savetxt('predict_median.csv', 
