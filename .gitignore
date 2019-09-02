@@ -2,5 +2,7 @@ data/
 .vscode/
 
 *.pt
+*.pth
 *.pyc
 *.npy
+*.log
