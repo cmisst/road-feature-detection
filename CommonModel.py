@@ -146,17 +146,22 @@ def main():
         [tv.transforms.RandomHorizontalFlip(p=1), tv.transforms.RandomVerticalFlip(p=1)]
     ]
     # m = CommonModel()
-    # for t in transforms:
+    # for t in transforms*20:
     #     m.set_data_transform(t=t)
-    #     m.train(label_pos=-5, batch=100, epochs=5, path=prefix+'Median_Satellite_View/train/')
+    #     m.train(label_pos=-5, batch=100, epochs=1, path=prefix+'Median_Satellite_View/train/')
+    # torch.save(m.net, 'median.pth')
+    # m.net = torch.load('median.pth')
     # m.test(label_pos=-5, batch=200, path=prefix+'Median_Satellite_View/test/')
     # m.test(label_pos=-5, batch=200, path=prefix+'Median_Satellite_View/Remainder1/')
 
     m = CommonModel()
-    for t in transforms*40:
+    m.set_data_transform(t=[])
+    for t in transforms*100:
         m.set_data_transform(t=t)
         m.train(label_pos=-8, batch=300, epochs=1, path=prefix+'Crosswalk_Satellite_View/train/')
         print(t)
+    torch.save(m.net, 'crosswalk.pth')
+    m.net = torch.load('crosswalk.pth')
     m.test(label_pos=-8, batch=200, path=prefix+'Crosswalk_Satellite_View/test/')
     m.test(label_pos=-8, batch=200, path=prefix+'Crosswalk_Satellite_View/Remainder0/')
     # np.savetxt('predict_median.csv', 
