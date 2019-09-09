@@ -2,7 +2,6 @@ import subprocess
 import os, sys
 import time
 import pandas as pd
-from yolo_output import analyze_yolo
 
 
 
@@ -65,10 +64,24 @@ class yolo3(object):
         [f.seek(0) for f in self.fr]
         for p in range(len(self.fr)):
             # TODO: deal with filename to uniqname self.filenames[p][group]
-            result = analyze_yolo(self.fr[p].readlines())
+            result = self.analyze_yolo_output(self.fr[p].readlines())
             # TODO: put results in dataframe
             self.fr[p].truncate()
-            
+    
+
+    def analyze_yolo_output(self, lines):
+        assert(len(lines)>=2)
+        assert(lines.pop(-1)=='Enter Image Path: ')
+        lines.pop(0)
+        for i in range(len(lines)):
+            lines[i] = lines[i].split(sep=':', maxsplit=1)[0]
+        d = dict.fromkeys(lines)
+        if 'traffic light' in d:
+            return 1
+        elif 'stop sign' in d:
+            return 2
+        else:
+            return 0
 
 
     def recognize(self, p, n):
