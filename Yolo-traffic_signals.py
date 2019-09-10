@@ -27,7 +27,11 @@ class yolo3(object):
 
         
     def split_task(self):
-        self.filenames = sorted(self.filenames)
+        names = []
+        for n in self.filenames:
+            if n.rsplit('.', 1)[1] in ['jpg', 'png']:
+                names.append(n)
+        self.filenames = sorted(names)
         # construct dictionary of image uniqnames
         self.df = dict.fromkeys([ int(n.split('/')[-1][0:8]) for n in self.filenames ])
         # padding to align
@@ -52,7 +56,7 @@ class yolo3(object):
             while(min([len(f.readlines()) for f in self.fr])<2):
                 [f.seek(0) for f in self.fr]
                 time.sleep(1) # check every 1 second for results
-            print('group {} takes time {}'.format(i, time.time()-t))
+            print('group {} takes time {}'.format(i+1, time.time()-t))
         self.text_analyzer(len(self.filenames[0])-1)
 
 
@@ -106,7 +110,7 @@ class yolo3(object):
 
 
 if __name__ == '__main__':
-    y = yolo3(procs=4)
+    y = yolo3(procs=32)
     y.filenames = listdir_abspath('../yolo-v3/data/street/')
     y.split_task()
     y.run_all()
