@@ -1,7 +1,6 @@
 import subprocess
 import os, sys
 import time
-import pandas as pd
 
 
 
@@ -24,12 +23,14 @@ class yolo3(object):
             for i in range(procs) ]
         time.sleep(max(5, procs/3*2))  # let darknet load weigths
         self.fr = [ open('tmpout'+str(i)+'.log', 'r+')  for i in range(procs) ]
-        [ f.truncate() for f in self.fr ]
+        [ f.truncate(0) for f in self.fr ]
 
         
     def split_task(self):
         self.filenames = sorted(self.filenames)
-        self.construct_dataframe()
+        # construct dictionary of image uniqnames
+        self.df = dict.fromkeys([ int(n.split('/')[-1][0:8]) for n in self.filenames ])
+        # padding to align
         self.filenames += self.filenames[-1:] * \
             (len(self.procs) - len(self.filenames) % len(self.procs)) 
         assert(len(self.filenames) % len(self.procs)==0)
@@ -40,6 +41,7 @@ class yolo3(object):
 
     def run_all(self):
         for i in range(len(self.filenames[0])):
+            t = time.time()
             for p in range(len(self.procs)):
                 self.recognize(p, i) # assumed to take long (>20 seconds)
             if(i>0):
@@ -50,24 +52,37 @@ class yolo3(object):
             while(min([len(f.readlines()) for f in self.fr])<2):
                 [f.seek(0) for f in self.fr]
                 time.sleep(1) # check every 1 second for results
+            print('group {} takes time {}'.format(i, time.time()-t))
         self.text_analyzer(len(self.filenames[0])-1)
-
-
-    def construct_dataframe(self):
-        # TODO: construct dataframe of image uniqnames
-        names = [ n.split('/')[-1] for n in self.filenames ]
-        pass
 
 
     def text_analyzer(self, group):
         # this function needs to run in <1 second
         [f.seek(0) for f in self.fr]
         for p in range(len(self.fr)):
-            # TODO: deal with filename to uniqname self.filenames[p][group]
+            uniqname = int(self.filenames[p][group].rsplit('/', 1)[1][0:8])
+            assert(uniqname in self.df)
             result = self.analyze_yolo_output(self.fr[p].readlines())
-            # TODO: put results in dataframe
-            self.fr[p].truncate()
-    
+            self.fw[p].truncate(0)
+            # put results in dataframe
+            if self.df[uniqname] == 1:
+                pass
+            else:
+                self.df[uniqname] = result
+        self.write_progress()
+
+
+    def write_progress(self, all=False, file=None):
+        if file is None:
+            file = 'progress.log'
+        p = open(file, 'w')
+        for k, v in self.df.items():
+            if v is not None:
+                p.writelines(str(k) + ',' + str(v) + '\n')
+            elif all:
+                p.writelines(str(k) + ', \n')
+        p.close()
+
 
     def analyze_yolo_output(self, lines):
         assert(len(lines)>=2)
@@ -95,5 +110,3 @@ if __name__ == '__main__':
     y.filenames = listdir_abspath('../yolo-v3/data/street/')
     y.split_task()
     y.run_all()
-
-    
