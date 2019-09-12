@@ -24,7 +24,7 @@ class yolo3(object):
         time.sleep(max(5, procs/3*2))  # let darknet load weigths
         self.fr = [ open('tmpout'+str(i)+'.log', 'r+')  for i in range(procs) ]
         [ f.truncate(0) for f in self.fr ]
-
+        [ f.truncate(0) for f in self.fw ]
         
     def split_task(self):
         names = []
@@ -33,7 +33,7 @@ class yolo3(object):
                 names.append(n)
         self.filenames = sorted(names)
         # construct dictionary of image uniqnames
-        self.df = dict.fromkeys([ int(n.split('/')[-1][0:8]) for n in self.filenames ])
+        self.df = dict.fromkeys([ n.split('/')[-1] for n in self.filenames ])
         # padding to align
         self.filenames += self.filenames[-1:] * \
             (len(self.procs) - len(self.filenames) % len(self.procs)) 
@@ -64,7 +64,7 @@ class yolo3(object):
         # this function needs to run in <1 second
         [f.seek(0) for f in self.fr]
         for p in range(len(self.fr)):
-            uniqname = int(self.filenames[p][group].rsplit('/', 1)[1][0:8])
+            uniqname = self.filenames[p][group].rsplit('/', 1)[1]
             assert(uniqname in self.df)
             result = self.analyze_yolo_output(self.fr[p].readlines())
             self.fw[p].truncate(0)
@@ -82,7 +82,7 @@ class yolo3(object):
         p = open(file, 'w')
         for k, v in self.df.items():
             if v is not None:
-                p.writelines(str(k) + ',' + str(v) + '\n')
+                p.writelines(str(k) + ',' + str(v[0]) + ',' + str(v[1]) + '\n')
             elif all:
                 p.writelines(str(k) + ', \n')
         p.close()
@@ -93,14 +93,12 @@ class yolo3(object):
         assert(lines.pop(-1)=='Enter Image Path: ')
         lines.pop(0)
         for i in range(len(lines)):
-            lines[i] = lines[i].split(sep=':', maxsplit=1)[0]
-        d = dict.fromkeys(lines)
-        if 'traffic light' in d:
-            return 1
-        elif 'stop sign' in d:
-            return 2
-        else:
-            return 0
+            obj,acc = lines[i].split(sep=':', maxsplit=1)
+            if obj == 'traffic light':
+                return (1, int(acc.split('%')[0]))
+            elif obj == 'stop sign':
+                return (2, int(acc.split('%')[0]))
+        return (0, 0)
 
 
     def recognize(self, p, n):
@@ -110,7 +108,7 @@ class yolo3(object):
 
 
 if __name__ == '__main__':
-    y = yolo3(procs=32)
+    y = yolo3(procs=16)
     y.filenames = listdir_abspath('../yolo-v3/data/street/')
     y.split_task()
     y.run_all()
