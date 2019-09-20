@@ -121,6 +121,7 @@ class CommonModel():
         
         n = np.array([]) # filenames
         p = np.array([]) # predict
+        c = np.array([]) # confidence
         with torch.no_grad():
             start=time.time()
             for data in dataloader:
@@ -128,14 +129,16 @@ class CommonModel():
                 images = images.to(self.device)
                 labels = labels.to(self.device)
                 outputs = self.net.fc(self.net(images))
-                outputs = (outputs>0).type(labels.dtype)
                 outputs = outputs.reshape(labels.shape)
-                n = np.append(n, filenames.cpu().numpy())
+                c = np.append(c, torch.sigmoid(outputs/10).cpu().numpy())
+                outputs = (outputs>0).type(labels.dtype)
                 p = np.append(p, outputs.cpu().numpy())
+                n = np.append(n, filenames.cpu().numpy())
                 end = time.time()
                 print(n.shape, 'elapsed time: {}'.format(end-start))
                 start = time.time()
-        return np.int64(np.stack((n,p)).T)
+        c[p==0] = 1 - c[p==0]
+        return np.int64(np.stack((n,p, c*100)).T)
 
 
 def main():
@@ -165,7 +168,7 @@ def main():
     m.test(label_pos=-8, batch=200, path=prefix+'Crosswalk_Satellite_View/test/')
     m.test(label_pos=-8, batch=200, path=prefix+'Crosswalk_Satellite_View/Remainder0/')
     # np.savetxt('predict_median.csv', 
-    #     m.predict(batch=1000, path='/scratch/engin_root/engin/yugtmath/Unlabeled_Satellite_IMG/'),
+    #     m.predict(batch=2000, path=prefix+'Unlabeled_Satellite_IMG/'),
     #     fmt='%d', delimiter=',')
     return
 
